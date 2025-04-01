@@ -1,109 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DropThePics</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      background: #0f172a;
+      color: white;
+      width: 100%;
+      padding: 20px 0;
+      text-align: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.5em;
+    }
+    main {
+      padding: 40px 20px;
+      text-align: center;
+    }
+    p {
+      max-width: 600px;
+      font-size: 1.1em;
+      margin: 0 auto 20px auto;
+      color: #333;
+    }
+    a.button {
+      display: inline-block;
+      background: #2563eb;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    footer {
+      margin-top: 40px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📸 Drop the Pics</h1>
+  </header>
 
-import os
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-from flask import Flask, render_template, request, redirect, session, url_for
-from werkzeug.utils import secure_filename
-from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2.credentials import Credentials
-from dotenv import load_dotenv
+  <main>
+    <p>Welcome to DropThePics — a virtual event album where everyone can drop their photos into one shared space.</p>
+    <p><strong>No apps, no sign-ups, just your link and your memories.</strong></p>
+    <a class="button" href="https://drive.google.com/drive/folders/1XyZabc123DEF456ghiJKlmn" target="_blank">Start Your Album</a>
+    <p><a href="terms.html">Terms of Service</a> • <a href="privacy-policy.html">Privacy Policy</a></p>
+  </main>
 
-
-# --- LOAD ENVIRONMENT VARIABLES ---
-load_dotenv()
-
-# --- CONFIGURATION ---
-UPLOAD_FOLDER = 'uploads'
-SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file']
-CLIENT_SECRETS_FILE = 'credentials.json'
-SECRET_KEY = os.getenv('SECRET_KEY')
-
-# Event folder mapping (you can expand this)
-event_folders = {
-    'tiojorge-birthday': '1HcW2vUa3obdmRtIafQNH8K0kmjn2Mxuf'
-}
-
-# --- SETUP ---
-app = Flask(__name__)
-app.secret_key = SECRET_KEY
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# --- HELPER FUNCTION ---
-def get_folder_id(event_id):
-    return event_folders.get(event_id)
-
-# --- ROUTES ---
-@app.route('/event/<event_id>', methods=['GET', 'POST'])
-def upload_to_event(event_id):
-    folder_id = get_folder_id(event_id)
-    if not folder_id:
-        return "Event not found.", 404
-
-    if request.method == 'POST':
-        file = request.files.get('photo')
-        if not file or file.filename == '':
-            return 'No file selected.'
-
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-
-        session['upload_file_name'] = filename
-        session['folder_id'] = folder_id
-        return redirect('/authorize')
-
-    return render_template('upload.html', event_name=event_id.replace('-', ' ').title())
-
-@app.route('/authorize')
-def authorize():
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
-        scopes=SCOPES,
-        redirect_uri=url_for('oauth2callback', _external=True)
-    )
-    auth_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true'
-    )
-    session['state'] = state
-    return redirect(auth_url)
-
-@app.route('/oauth2callback')
-def oauth2callback():
-    state = session.get('state')
-    flow = Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
-        scopes=SCOPES,
-        state=state,
-        redirect_uri=url_for('oauth2callback', _external=True)
-    )
-    flow.fetch_token(authorization_response=request.url)
-    creds = flow.credentials
-
-    service = build('drive', 'v3', credentials=creds)
-    file_name = session.get('upload_file_name')
-    folder_id = session.get('folder_id')
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
-
-    if file_path and folder_id and os.path.exists(file_path):
-        file_metadata = {
-            'name': file_name,
-            'parents': [folder_id]
-        }
-        media = MediaFileUpload(file_path, resumable=True)
-        service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id'
-        ).execute()
-
-        os.remove(file_path)
-        return render_template('thanks.html')
-    else:
-        return 'File or folder information missing or file not found.'
-
-# --- RUN SERVER ---
-if __name__ == '__main__':
-    app.run(debug=True)
+  <footer>
+    <p>© 2025 DropThePics</p>
+  </footer>
+</body>
+</html>
